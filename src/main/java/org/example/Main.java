@@ -1,6 +1,7 @@
 package org.example;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -11,6 +12,8 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -19,20 +22,28 @@ public class Main {
     public static void main(String[] args) throws Exception {
         String projectId = "de-da-ml";
         String topicId = "pharmacy-medication-form-data";
-        BlobId blobId = BlobId.of("pharamacy-deda", "test/medication_form-0.json");
+        String bucketName = "research64";
 
-        publisherExample(projectId, topicId, blobId);
+        publisherExample(projectId, topicId, bucketName);
     }
 
-    private static void publisherExample(String projectId, String topicId, BlobId blobId) throws IOException, ExecutionException, InterruptedException {
+    private static void publisherExample(String projectId, String topicId, String bucketName) throws IOException, ExecutionException, InterruptedException {
         TopicName topicName = TopicName.of(projectId, topicId);
+
+        Storage storage = StorageOptions.getDefaultInstance().getService();
+        Page<Blob> blobs = storage.list(bucketName);
+        List<BlobId> blobIdList = new ArrayList<>();
+        for (Blob blob : blobs.iterateAll()) {
+            blobIdList.add(blob.getBlobId());
+        }
+        Blob blob = storage.get(blobIdList.get(blobIdList.size()-1));
 
         Publisher publisher = null;
         try {
             // Create a publisher instance with default settings bound to the topic
             publisher = Publisher.newBuilder(topicName).build();
 
-            String message = readFromGCSBucket(blobId);
+            String message = new String(blob.getContent());
             ByteString data = ByteString.copyFromUtf8(message);
             PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
 
@@ -47,11 +58,5 @@ public class Main {
                 publisher.awaitTermination(1, TimeUnit.MINUTES);
             }
         }
-    }
-
-    private static String readFromGCSBucket(BlobId blobId) {
-        Storage storage = StorageOptions.getDefaultInstance().getService();
-        Blob blob = storage.get(blobId);
-        return new String(blob.getContent());
     }
 }
