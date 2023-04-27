@@ -32,13 +32,11 @@ public class Main {
 
         Storage storage = StorageOptions.getDefaultInstance().getService();
         Page<Blob> blobs = storage.list(bucketName);
-        List<String> blobList = new ArrayList<>();
+        List<BlobId> blobIdList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            blobList.add(blob.getName());
+            blobIdList.add(blob.getBlobId());
         }
-
-        BlobId blobId = BlobId.of(bucketName, blobList.get(blobList.size()-1));
-        Blob blob = storage.get(blobId);
+        Blob blob = storage.get(blobIdList.get(blobIdList.size()-1));
 
         Publisher publisher = null;
         try {
